@@ -131,14 +131,23 @@ class ResourceGroupsTaggingAPIBackend(BaseBackend):
         def tag_filter(tag_list):
             result = []
             if tag_filters:
-                for tag in tag_list:
+                for f in filters:
                     temp_result = []
-                    for f in filters:
+                    for tag in tag_list:
                         f_result = f(tag["Key"], tag["Value"])
                         temp_result.append(f_result)
                     result.append(all(temp_result))
 
-                return any(result)
+                return all(result)
+
+                # for tag in tag_list:
+                #     temp_result = []
+                #     for f in filters:
+                #         f_result = f(tag["Key"], tag["Value"])
+                #         temp_result.append(f_result)
+                #     result.append(all(temp_result))
+
+                # return any(result)
             else:
                 return True
 

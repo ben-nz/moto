@@ -223,37 +223,49 @@ def test_get_resources_target_group():
 
     vpc = ec2.create_vpc(CidrBlock="172.28.7.0/24", InstanceTenancy="default")
 
-    # Create two tagged target groups
+    # Create four tagged target groups
     for i in range(1, 3):
         i_str = str(i)
 
-        target_group = elbv2.create_target_group(
-            Name="test" + i_str,
-            Protocol="HTTP",
-            Port=8080,
-            VpcId=vpc.id,
-            TargetType="instance",
-        )["TargetGroups"][0]
+        for i2 in range(1, 3):
+            i2_str = str(i2)
+            target_group = elbv2.create_target_group(
+                Name="test" + i_str + i2_str,
+                Protocol="HTTP",
+                Port=8080,
+                VpcId=vpc.id,
+                TargetType="instance",
+            )["TargetGroups"][0]
 
-        elbv2.add_tags(
-            ResourceArns=[target_group["TargetGroupArn"]],
-            Tags=[{"Key": "Test", "Value": i_str}],
-        )
+            elbv2.add_tags(
+                ResourceArns=[target_group["TargetGroupArn"]],
+                Tags=[
+                    {"Key": "Test1", "Value": "true"},
+                    {"Key": "Test2", "Value": i_str},
+                    {"Key": "Test3", "Value": i2_str},
+                ],
+            )
 
     rtapi = boto3.client("resourcegroupstaggingapi", region_name="eu-central-1")
 
     # Basic test
-    resp = rtapi.get_resources(ResourceTypeFilters=["elasticloadbalancing:targetgroup"])
-    resp["ResourceTagMappingList"].should.have.length_of(2)
-
-    # Test tag filtering
-    resp = rtapi.get_resources(
-        ResourceTypeFilters=["elasticloadbalancing:targetgroup"],
-        TagFilters=[{"Key": "Test", "Values": ["1"]}],
+    resp1 = rtapi.get_resources(
+        ResourceTypeFilters=["elasticloadbalancing:targetgroup"]
     )
-    resp["ResourceTagMappingList"].should.have.length_of(1)
-    resp["ResourceTagMappingList"][0]["Tags"].should.contain(
-        {"Key": "Test", "Value": "1"}
+    resp1["ResourceTagMappingList"].should.have.length_of(4)
+
+    # Test tag filtering across two dimensions
+    resp2 = rtapi.get_resources(
+        ResourceTypeFilters=["elasticloadbalancing:targetgroup"],
+        TagFilters=[
+            {"Key": "Test1", "Values": ["true"]},
+            {"Key": "Test2", "Values": ["2"]},
+            {"Key": "Test3", "Values": ["1"]},
+        ],
+    )
+    resp2["ResourceTagMappingList"].should.have.length_of(1)
+    resp2["ResourceTagMappingList"][0]["Tags"].should.contain(
+        {"Key": "Test3", "Value": "1"}
     )
 
 
